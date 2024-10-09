@@ -51,6 +51,10 @@
         #errorsTable {
             display: none;
         }
+        #novaQuantidadeBox {
+            display: none; /* Caixa de texto oculta inicialmente */
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
@@ -71,9 +75,16 @@
         </div>
 
         <button class="button-success" onclick="marcarComoContado()">Material Contado</button>
-        <button class="button-error" onclick="corrigirMaterial()">Material Errado</button>
+        <button class="button-error" onclick="mostrarCaixaQuantidade()">Material Errado</button>
         <button class="button" onclick="proximoMaterial()">Próximo</button>
         <button class="button" onclick="mostrarErros()">Ver Lista de Erros</button>
+
+        <!-- Caixa de texto para corrigir a quantidade -->
+        <div id="novaQuantidadeBox">
+            <p>Insira a quantidade correta:</p>
+            <input type="number" id="novaQuantidadeInput">
+            <button class="button" onclick="corrigirQuantidade()">Confirmar Correção</button>
+        </div>
     </div>
 
     <!-- Tabela de erros -->
@@ -139,6 +150,7 @@
                 document.getElementById('descricaoMaterial').innerText = material.descricao;
                 document.getElementById('quantidadeMaterial').innerText = material.quantidade;
                 document.getElementById('unidadeMedida').innerText = material.unidade;
+                document.getElementById('novaQuantidadeBox').style.display = 'none'; // Esconde a caixa de correção
             }
         }
 
@@ -159,10 +171,14 @@
             proximoMaterial();  // Avança para o próximo material
         }
 
-        function corrigirMaterial() {
-            var novaQuantidade = prompt("Digite a quantidade correta:");
+        function mostrarCaixaQuantidade() {
+            document.getElementById('novaQuantidadeBox').style.display = 'block';  // Mostra a caixa de correção
+        }
 
-            if (novaQuantidade != null) {
+        function corrigirQuantidade() {
+            var novaQuantidade = document.getElementById("novaQuantidadeInput").value;
+
+            if (novaQuantidade != "") {
                 let codigo = document.getElementById("codigoMaterial").innerText;
                 let descricao = document.getElementById("descricaoMaterial").innerText;
                 let unidade = document.getElementById("unidadeMedida").innerText;
@@ -176,6 +192,8 @@
 
                 alert("Material adicionado aos erros com a quantidade corrigida.");
                 proximoMaterial();  // Avança para o próximo material
+            } else {
+                alert("Por favor, insira a quantidade correta.");
             }
         }
 
