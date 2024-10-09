@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,235 +8,204 @@
         body {
             font-family: Arial, sans-serif;
             margin: 20px;
-            background-color: #f4f4f4;
-            color: #333;
-        }
-        h1 {
             text-align: center;
-            color: #4CAF50;
         }
-        #fileInput, #uploadButton {
-            margin: 10px 0;
-            display: block;
+        table {
             width: 100%;
-            padding: 10px;
-            font-size: 16px;
+            margin-top: 20px;
+            border-collapse: collapse;
         }
-        button {
-            background-color: #4CAF50;
+        th, td {
+            padding: 10px;
+            border: 1px solid #ccc;
+            text-align: center;
+        }
+        th {
+            background-color: #f4f4f4;
+        }
+        #materialInfo {
+            margin-top: 20px;
+        }
+        .button {
+            padding: 10px 15px;
+            margin: 5px;
+            background-color: #007bff;
             color: white;
             border: none;
-            padding: 10px 15px;
-            text-align: center;
-            text-decoration: none;
-            display: inline-block;
-            margin: 10px 5px;
             cursor: pointer;
-            border-radius: 5px;
-            font-size: 16px;
-            transition: background-color 0.3s;
         }
-        button:hover {
-            background-color: #45a049;
+        .button:disabled {
+            background-color: #ccc;
         }
-        #codeInputSection {
-            margin: 20px 0;
-            display: none;
+        .button-error {
+            background-color: #dc3545;
         }
-        #codeInput {
-            width: 100%;
+        .button-success {
+            background-color: #28a745;
+        }
+        #linhaMaterial {
             padding: 10px;
-            font-size: 16px;
-        }
-        #dataDisplay {
             margin-top: 20px;
-            font-size: 1.2em;
-            text-align: center;
+            background-color: #f9f9f9;
         }
-        .item {
-            margin: 10px auto;
-            border: 1px solid #ccc;
-            padding: 15px;
-            border-radius: 5px;
-            background-color: white;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-            max-width: 600px;
-        }
-        .label {
-            font-weight: bold;
-            display: block;
-            margin-top: 10px;
-        }
-        #navigationButtons {
-            text-align: center;
-            margin-top: 15px;
+        #errorsTable {
             display: none;
-        }
-        #navigationButtons button {
-            margin: 5px;
-        }
-        .error {
-            color: red;
-            font-weight: bold;
         }
     </style>
 </head>
 <body>
+
     <h1>Contagem de Estoque</h1>
-    <div id="upload-section">
-        <input type="file" id="fileInput" accept=".csv" />
-        <button id="uploadButton">Carregar Arquivo</button>
+
+    <!-- Botão para importar o arquivo -->
+    <input type="file" id="fileInput" accept=".csv" class="button">
+    <button id="btnLoad" class="button">Carregar Arquivo</button>
+
+    <div id="materialInfo">
+        <h3>Informações do Material</h3>
+        <div id="linhaMaterial">
+            <p><strong>Código:</strong> <span id="codigoMaterial"></span></p>
+            <p><strong>Descrição:</strong> <span id="descricaoMaterial"></span></p>
+            <p><strong>Quantidade:</strong> <span id="quantidadeMaterial"></span></p>
+            <p><strong>Unidade de Medida:</strong> <span id="unidadeMedida"></span></p>
+        </div>
+
+        <button class="button-success" onclick="marcarComoContado()">Material Contado</button>
+        <button class="button-error" onclick="corrigirMaterial()">Material Errado</button>
+        <button class="button" onclick="proximoMaterial()">Próximo</button>
+        <button class="button" onclick="mostrarErros()">Ver Lista de Erros</button>
     </div>
 
-    <div id="codeInputSection">
-        <input type="text" id="codeInput" placeholder="Digite o código do material" />
-    </div>
-    
-    <div id="dataDisplay"></div>
-    
-    <div id="navigationButtons">
-        <button id="prevButton">Anterior</button>
-        <button id="nextButton">Próximo</button>
-        <button id="markErrorButton">Marcar como Errado</button>
-        <button id="viewErrorsButton" style="display:none;">Ver Itens Errados</button>
+    <!-- Tabela de erros -->
+    <div id="errorsTable">
+        <h3>Materiais com Erros</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Descrição</th>
+                    <th>Quantidade Corrigida</th>
+                    <th>Unidade de Medida</th>
+                </tr>
+            </thead>
+            <tbody id="errorsBody"></tbody>
+        </table>
     </div>
 
     <script>
-        let items = [];
-        let currentIndex = parseInt(localStorage.getItem('currentIndex')) || 0;
-        let errors = JSON.parse(localStorage.getItem('errors')) || [];
+        let materiais = [];
+        let indexAtual = 0;
+        let errors = [];
+        let contados = [];
 
-        document.getElementById('uploadButton').addEventListener('click', function() {
-            const fileInput = document.getElementById('fileInput');
-            const file = fileInput.files[0];
+        document.getElementById('btnLoad').addEventListener('click', function() {
+            let fileInput = document.getElementById('fileInput');
+            let file = fileInput.files[0];
 
             if (file) {
-                const reader = new FileReader();
-
+                let reader = new FileReader();
                 reader.onload = function(e) {
-                    const contents = e.target.result;
-                    console.log("Conteúdo do arquivo:", contents);
-                    
-                    // Dividir o conteúdo em linhas e colunas
-                    items = contents.split('\n').map(line => line.trim().split(';')).filter(line => line.length === 4 && line[0] !== '');
-                    console.log("Dados processados:", items);
-
-                    // Ocultar a seção de upload e mostrar a seção de input de código
-                    document.getElementById('upload-section').style.display = 'none';
-                    document.getElementById('uploadButton').style.display = 'none';
-                    document.getElementById('codeInputSection').style.display = 'block';
-                    document.getElementById('navigationButtons').style.display = 'block';
-
-                    // Mostrar o botão "Ver Itens Errados" se houver erros
-                    document.getElementById('viewErrorsButton').style.display = errors.length > 0 ? 'inline-block' : 'none';
+                    let contents = e.target.result;
+                    processarCSV(contents);
+                    mostrarMaterial(indexAtual);
+                    fileInput.style.display = 'none'; // Ocultar botão de upload após carregar
+                    document.getElementById('btnLoad').style.display = 'none';
                 };
-
                 reader.readAsText(file);
             } else {
-                alert('Por favor, selecione um arquivo CSV.');
+                alert("Por favor, selecione um arquivo.");
             }
         });
 
-        document.getElementById('codeInput').addEventListener('input', function() {
-            const codeInput = this.value.trim();
-            if (codeInput === '') {
-                clearDisplay();
-                return;
-            }
-            const matchedItem = items.find(item => item[0].toLowerCase().startsWith(codeInput.toLowerCase()));
-
-            if (matchedItem) {
-                currentIndex = items.indexOf(matchedItem);
-                displayItem(matchedItem);
-                localStorage.setItem('currentIndex', currentIndex); // Salva o índice atual
-            } else {
-                clearDisplay();
-            }
-        });
-
-        function displayItem(item) {
-            const dataDisplay = document.getElementById('dataDisplay');
-            dataDisplay.innerHTML = '';
-
-            if (item && item.length === 4) {
-                const itemDiv = document.createElement('div');
-                itemDiv.className = 'item';
-                itemDiv.innerHTML = `
-                    <div class="label">Código:</div> <div>${item[0]}</div>
-                    <div class="label">Descrição:</div> <div>${item[1]}</div>
-                    <div class="label">Utilização Livre:</div> <div>${item[2]}</div>
-                    <div class="label">Quantidade Corrigida:</div>
-                    <input type="number" id="correctQuantity" placeholder="Digite a quantidade correta" />
-                `;
-                dataDisplay.appendChild(itemDiv);
-
-                // Mostrar o botão "Ver Itens Errados" se houver erros
-                document.getElementById('viewErrorsButton').style.display = errors.length > 0 ? 'inline-block' : 'none';
-
-                // Exibir os botões de navegação
-                document.getElementById('navigationButtons').style.display = 'block';
-
-                // Adiciona o evento para o botão de marcar erro
-                document.getElementById('markErrorButton').onclick = function() {
-                    const correctQuantity = document.getElementById('correctQuantity').value;
-                    if (correctQuantity) {
-                        errors.push({ 
-                            codigo: item[0], 
-                            descricao: item[1], 
-                            utilizacao: item[2],
-                            quantidade: correctQuantity
-                        });
-                        localStorage.setItem('errors', JSON.stringify(errors)); // Atualiza o localStorage com erros
-                        alert('Item marcado como errado.');
-
-                        // Limpar o campo de input para o próximo código
-                        document.getElementById('codeInput').value = '';
-                        clearDisplay();
-                    } else {
-                        alert('Por favor, insira a quantidade corrigida.');
-                    }
-                };
-            } else {
-                dataDisplay.innerHTML = 'Item não encontrado ou formato inválido.';
+        function processarCSV(texto) {
+            let linhas = texto.split('\n');
+            for (let i = 1; i < linhas.length; i++) {
+                let colunas = linhas[i].split(';');
+                if (colunas.length >= 4) {
+                    materiais.push({
+                        codigo: colunas[0].trim(),
+                        descricao: colunas[1].trim(),
+                        quantidade: colunas[2].trim(),
+                        unidade: colunas[3].trim()
+                    });
+                }
             }
         }
 
-        function clearDisplay() {
-            const dataDisplay = document.getElementById('dataDisplay');
-            dataDisplay.innerHTML = '';
-            document.getElementById('markErrorButton').style.display = 'none';
+        function mostrarMaterial(index) {
+            if (index >= 0 && index < materiais.length) {
+                let material = materiais[index];
+                document.getElementById('codigoMaterial').innerText = material.codigo;
+                document.getElementById('descricaoMaterial').innerText = material.descricao;
+                document.getElementById('quantidadeMaterial').innerText = material.quantidade;
+                document.getElementById('unidadeMedida').innerText = material.unidade;
+            }
         }
 
-        document.getElementById('prevButton').addEventListener('click', function() {
-            if (currentIndex > 0) {
-                currentIndex--;
-                displayItem(items[currentIndex]);
-                localStorage.setItem('currentIndex', currentIndex); // Salva o índice atual
-                document.getElementById('codeInput').value = items[currentIndex][0]; // Atualiza o campo de código
-            }
-        });
+        function marcarComoContado() {
+            let codigo = document.getElementById("codigoMaterial").innerText;
+            let descricao = document.getElementById("descricaoMaterial").innerText;
+            let quantidade = document.getElementById("quantidadeMaterial").innerText;
+            let unidade = document.getElementById("unidadeMedida").innerText;
 
-        document.getElementById('nextButton').addEventListener('click', function() {
-            if (currentIndex < items.length - 1) {
-                currentIndex++;
-                displayItem(items[currentIndex]);
-                localStorage.setItem('currentIndex', currentIndex); // Salva o índice atual
-                document.getElementById('codeInput').value = items[currentIndex][0]; // Atualiza o campo de código
-            }
-        });
+            contados.push({
+                codigo: codigo,
+                descricao: descricao,
+                quantidade: quantidade,
+                unidade: unidade
+            });
 
-        document.getElementById('viewErrorsButton').addEventListener('click', function() {
-            localStorage.setItem('currentIndex', currentIndex); // Salva o índice atual antes de ir para a nova tela
-            window.location.href = 'errors.html';
-        });
+            alert("Material marcado como contado.");
+            proximoMaterial();  // Avança para o próximo material
+        }
 
-        // Carregar o item atual ao recarregar a página, se houver
-        window.onload = function() {
-            if (items.length > 0 && currentIndex < items.length) {
-                displayItem(items[currentIndex]);
-                document.getElementById('codeInput').value = items[currentIndex].codigo;
+        function corrigirMaterial() {
+            var novaQuantidade = prompt("Digite a quantidade correta:");
+
+            if (novaQuantidade != null) {
+                let codigo = document.getElementById("codigoMaterial").innerText;
+                let descricao = document.getElementById("descricaoMaterial").innerText;
+                let unidade = document.getElementById("unidadeMedida").innerText;
+
+                errors.push({
+                    codigo: codigo,
+                    descricao: descricao,
+                    novaQuantidade: novaQuantidade,
+                    unidade: unidade
+                });
+
+                alert("Material adicionado aos erros com a quantidade corrigida.");
+                proximoMaterial();  // Avança para o próximo material
             }
-        };
+        }
+
+        function proximoMaterial() {
+            indexAtual++;
+            if (indexAtual < materiais.length) {
+                mostrarMaterial(indexAtual);
+            } else {
+                alert("Você terminou de contar todos os materiais.");
+            }
+        }
+
+        function mostrarErros() {
+            let errorsTable = document.getElementById("errorsTable");
+            let errorsBody = document.getElementById("errorsBody");
+            errorsBody.innerHTML = "";  // Limpa a tabela antes de popular
+
+            errors.forEach(function(item) {
+                let row = `<tr>
+                    <td>${item.codigo}</td>
+                    <td>${item.descricao}</td>
+                    <td>${item.novaQuantidade}</td>
+                    <td>${item.unidade}</td>
+                </tr>`;
+                errorsBody.innerHTML += row;
+            });
+
+            errorsTable.style.display = "block";  // Exibe a tabela de erros
+        }
     </script>
+
 </body>
 </html>
