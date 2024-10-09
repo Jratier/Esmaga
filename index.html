@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,51 +9,79 @@
             font-family: Arial, sans-serif;
             margin: 20px;
             text-align: center;
+            background-color: #f0f4f8; /* Fundo claro */
+            color: #333;
         }
-        table {
-            width: 100%;
-            margin-top: 20px;
-            border-collapse: collapse;
-        }
-        th, td {
-            padding: 10px;
-            border: 1px solid #ccc;
-            text-align: center;
-        }
-        th {
-            background-color: #f4f4f4;
-        }
-        #materialInfo {
-            margin-top: 20px;
+        h1 {
+            color: #4A90E2; /* Azul suave */
+            margin-bottom: 20px;
         }
         .button {
-            padding: 10px 15px;
+            padding: 10px 20px;
             margin: 5px;
-            background-color: #007bff;
+            background-color: #4A90E2; /* Azul suave */
             color: white;
             border: none;
+            border-radius: 5px;
+            font-size: 16px;
             cursor: pointer;
+            transition: background-color 0.3s, transform 0.3s;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         }
-        .button:disabled {
-            background-color: #ccc;
-        }
-        .button-error {
-            background-color: #dc3545;
-        }
-        .button-success {
-            background-color: #28a745;
+        .button:hover {
+            background-color: #357ABD; /* Azul escuro */
+            transform: translateY(-1px);
         }
         #linhaMaterial {
-            padding: 10px;
+            padding: 20px;
             margin-top: 20px;
-            background-color: #f9f9f9;
-        }
-        #errorsTable {
-            display: none;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            display: inline-block;
+            text-align: left;
+            max-width: 500px;
+            width: 100%; /* Ajusta para a tela */
         }
         #novaQuantidadeBox {
-            display: none; /* Caixa de texto oculta inicialmente */
+            display: none; /* Oculta a caixa de correção inicialmente */
             margin-top: 20px;
+        }
+        #novaQuantidadeBox input {
+            padding: 8px;
+            width: 50%;
+            font-size: 16px;
+            margin-right: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        #errorsTable {
+            display: none; /* Oculta a tabela de erros inicialmente */
+            margin-top: 20px;
+        }
+        #errorsTable table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        #errorsTable th, #errorsTable td {
+            padding: 10px;
+            border: 1px solid #dee2e6;
+            text-align: center;
+        }
+        #errorsTable th {
+            background-color: #f8f9fa;
+            color: #495057;
+        }
+        /* Responsividade */
+        @media (max-width: 600px) {
+            #linhaMaterial, #errorsTable table {
+                width: 100%;
+            }
+            #novaQuantidadeBox input {
+                width: 100%;
+                margin-bottom: 10px;
+            }
         }
     </style>
 </head>
@@ -65,7 +93,7 @@
     <input type="file" id="fileInput" accept=".csv" class="button">
     <button id="btnLoad" class="button">Carregar Arquivo</button>
 
-    <div id="materialInfo">
+    <div id="materialInfo" style="display: none;">
         <h3>Informações do Material</h3>
         <div id="linhaMaterial">
             <p><strong>Código:</strong> <span id="codigoMaterial"></span></p>
@@ -74,17 +102,21 @@
             <p><strong>Unidade de Medida:</strong> <span id="unidadeMedida"></span></p>
         </div>
 
-        <button class="button-success" onclick="marcarComoContado()">Material Contado</button>
-        <button class="button-error" onclick="mostrarCaixaQuantidade()">Material Errado</button>
+        <button class="button" onclick="mostrarCaixaQuantidade()">Material Errado</button>
         <button class="button" onclick="proximoMaterial()">Próximo</button>
         <button class="button" onclick="mostrarErros()">Ver Lista de Erros</button>
 
         <!-- Caixa de texto para corrigir a quantidade -->
         <div id="novaQuantidadeBox">
             <p>Insira a quantidade correta:</p>
-            <input type="number" id="novaQuantidadeInput">
+            <input type="number" id="novaQuantidadeInput" min="0" placeholder="Quantidade correta">
             <button class="button" onclick="corrigirQuantidade()">Confirmar Correção</button>
         </div>
+    </div>
+
+    <!-- Caixa de pesquisa para buscar materiais -->
+    <div id="searchBox" style="display: none;">
+        <input type="text" id="searchInput" oninput="pesquisarMaterial()" placeholder="Pesquisar material pelo código..." class="button" style="width: 50%; padding: 10px;">
     </div>
 
     <!-- Tabela de erros -->
@@ -101,13 +133,16 @@
             </thead>
             <tbody id="errorsBody"></tbody>
         </table>
+        <!-- Botão Voltar -->
+        <button class="button" onclick="voltarParaContagem()">Voltar para Contagem</button>
+        <!-- Botão para Gerar Relatório -->
+        <button class="button" onclick="gerarRelatorio()">Gerar Relatório</button>
     </div>
 
     <script>
         let materiais = [];
         let indexAtual = 0;
         let errors = [];
-        let contados = [];
 
         document.getElementById('btnLoad').addEventListener('click', function() {
             let fileInput = document.getElementById('fileInput');
@@ -119,8 +154,10 @@
                     let contents = e.target.result;
                     processarCSV(contents);
                     mostrarMaterial(indexAtual);
-                    fileInput.style.display = 'none'; // Ocultar botão de upload após carregar
+                    document.getElementById('fileInput').style.display = 'none'; // Ocultar botão de upload após carregar
                     document.getElementById('btnLoad').style.display = 'none';
+                    document.getElementById('searchBox').style.display = 'block'; // Mostrar caixa de pesquisa
+                    document.getElementById('materialInfo').style.display = 'block'; // Mostrar informações do material
                 };
                 reader.readAsText(file);
             } else {
@@ -151,24 +188,13 @@
                 document.getElementById('quantidadeMaterial').innerText = material.quantidade;
                 document.getElementById('unidadeMedida').innerText = material.unidade;
                 document.getElementById('novaQuantidadeBox').style.display = 'none'; // Esconde a caixa de correção
+            } else {
+                alert("Você terminou de contar todos os materiais.");
+                document.getElementById('materialInfo').style.display = 'none';
+                if (errors.length > 0) {
+                    mostrarErros();
+                }
             }
-        }
-
-        function marcarComoContado() {
-            let codigo = document.getElementById("codigoMaterial").innerText;
-            let descricao = document.getElementById("descricaoMaterial").innerText;
-            let quantidade = document.getElementById("quantidadeMaterial").innerText;
-            let unidade = document.getElementById("unidadeMedida").innerText;
-
-            contados.push({
-                codigo: codigo,
-                descricao: descricao,
-                quantidade: quantidade,
-                unidade: unidade
-            });
-
-            alert("Material marcado como contado.");
-            proximoMaterial();  // Avança para o próximo material
         }
 
         function mostrarCaixaQuantidade() {
@@ -176,9 +202,9 @@
         }
 
         function corrigirQuantidade() {
-            var novaQuantidade = document.getElementById("novaQuantidadeInput").value;
+            let novaQuantidade = document.getElementById("novaQuantidadeInput").value;
 
-            if (novaQuantidade != "") {
+            if (novaQuantidade !== "") {
                 let codigo = document.getElementById("codigoMaterial").innerText;
                 let descricao = document.getElementById("descricaoMaterial").innerText;
                 let unidade = document.getElementById("unidadeMedida").innerText;
@@ -191,39 +217,66 @@
                 });
 
                 alert("Material adicionado aos erros com a quantidade corrigida.");
-                proximoMaterial();  // Avança para o próximo material
+                document.getElementById("novaQuantidadeInput").value = ""; // Limpa o campo após a correção
+                proximoMaterial(); // Avança para o próximo material
             } else {
-                alert("Por favor, insira a quantidade correta.");
+                alert("Por favor, insira uma quantidade válida.");
             }
         }
 
         function proximoMaterial() {
             indexAtual++;
-            if (indexAtual < materiais.length) {
-                mostrarMaterial(indexAtual);
-            } else {
-                alert("Você terminou de contar todos os materiais.");
-            }
+            mostrarMaterial(indexAtual);
         }
 
         function mostrarErros() {
-            let errorsTable = document.getElementById("errorsTable");
-            let errorsBody = document.getElementById("errorsBody");
-            errorsBody.innerHTML = "";  // Limpa a tabela antes de popular
+            document.getElementById('materialInfo').style.display = 'none'; // Esconde a seção de contagem
+            document.getElementById('errorsTable').style.display = 'block'; // Mostra a tabela de erros
+            let errorsBody = document.getElementById('errorsBody');
+            errorsBody.innerHTML = ""; // Limpa a tabela antes de preencher
 
-            errors.forEach(function(item) {
+            errors.forEach(error => {
                 let row = `<tr>
-                    <td>${item.codigo}</td>
-                    <td>${item.descricao}</td>
-                    <td>${item.novaQuantidade}</td>
-                    <td>${item.unidade}</td>
+                    <td>${error.codigo}</td>
+                    <td>${error.descricao}</td>
+                    <td>${error.novaQuantidade}</td>
+                    <td>${error.unidade}</td>
                 </tr>`;
                 errorsBody.innerHTML += row;
             });
+        }
 
-            errorsTable.style.display = "block";  // Exibe a tabela de erros
+        function voltarParaContagem() {
+            document.getElementById('errorsTable').style.display = 'none'; // Esconde a tabela de erros
+            document.getElementById('materialInfo').style.display = 'block'; // Mostra a seção de contagem
+            indexAtual = 0; // Reinicia o índice
+            mostrarMaterial(indexAtual); // Mostra o primeiro material
+        }
+
+        function gerarRelatorio() {
+            let relatorio = "Código;Descrição;Quantidade Corrigida;Unidade\n";
+            errors.forEach(error => {
+                relatorio += `${error.codigo};${error.descricao};${error.novaQuantidade};${error.unidade}\n`;
+            });
+            let blob = new Blob([relatorio], { type: 'text/csv' });
+            let url = URL.createObjectURL(blob);
+            let a = document.createElement('a');
+            a.href = url;
+            a.download = 'relatorio_erros.csv';
+            a.click();
+            URL.revokeObjectURL(url); // Libera a URL criada
+        }
+
+        function pesquisarMaterial() {
+            let input = document.getElementById('searchInput').value.toLowerCase();
+            let material = materiais[indexAtual];
+
+            if (material.codigo.toLowerCase().includes(input)) {
+                mostrarMaterial(indexAtual);
+            } else {
+                alert("Material não encontrado.");
+            }
         }
     </script>
-
 </body>
 </html>
