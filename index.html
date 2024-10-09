@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contagem de Estoque</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+            color: #4CAF50;
+        }
+        #fileInput, #uploadButton {
+            margin: 10px 0;
+            display: block;
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            margin: 10px 5px;
+            cursor: pointer;
+            border-radius: 5px;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #codeInputSection {
+            margin: 20px 0;
+            display: none;
+        }
+        #codeInput {
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+        }
+        #dataDisplay {
+            margin-top: 20px;
+            font-size: 1.2em;
+            text-align: center;
+        }
+        .item {
+            margin: 10px auto;
+            border: 1px solid #ccc;
+            padding: 15px;
+            border-radius: 5px;
+            background-color: white;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+        }
+        .label {
+            font-weight: bold;
+            display: block;
+            margin-top: 10px;
+        }
+        #navigationButtons {
+            text-align: center;
+            margin-top: 15px;
+            display: none;
+        }
+        #navigationButtons button {
+            margin: 5px;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Contagem de Estoque</h1>
+    <div id="upload-section">
+        <input type="file" id="fileInput" accept=".csv" />
+        <button id="uploadButton">Carregar Arquivo</button>
+    </div>
+
+    <div id="codeInputSection">
+        <input type="text" id="codeInput" placeholder="Digite o código do material" />
+    </div>
+    
+    <div id="dataDisplay"></div>
+    
+    <div id="navigationButtons">
+        <button id="prevButton">Anterior</button>
+        <button id="nextButton">Próximo</button>
+        <button id="markErrorButton">Marcar como Errado</button>
+        <button id="viewErrorsButton" style="display:none;">Ver Itens Errados</button>
+    </div>
+
+    <script>
+        let items = [];
+        let currentIndex = parseInt(localStorage.getItem('currentIndex')) || 0;
+        let errors = JSON.parse(localStorage.getItem('errors')) || [];
+
+        document.getElementById('uploadButton').addEventListener('click', function() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+
+            if (file) {
+                const reader = new FileReader();
+
+                reader.onload = function(e) {
+                    const contents = e.target.result;
+                    console.log("Conteúdo do arquivo:", contents);
+                    
+                    // Dividir o conteúdo em linhas e colunas
+                    items = contents.split('\n').map(line => line.trim().split(';')).filter(line => line.length === 4 && line[0] !== '');
+                    console.log("Dados processados:", items);
+
+                    // Ocultar a seção de upload e mostrar a seção de input de código
+                    document.getElementById('upload-section').style.display = 'none';
+                    document.getElementById('uploadButton').style.display = 'none';
+                    document.getElementById('codeInputSection').style.display = 'block';
+                    document.getElementById('navigationButtons').style.display = 'block';
+
+                    // Mostrar o botão "Ver Itens Errados" se houver erros
+                    document.getElementById('viewErrorsButton').style.display = errors.length > 0 ? 'inline-block' : 'none';
+                };
+
+                reader.readAsText(file);
+            } else {
+                alert('Por favor, selecione um arquivo CSV.');
+            }
+        });
+
+        document.getElementById('codeInput').addEventListener('input', function() {
+            const codeInput = this.value.trim();
+            if (codeInput === '') {
+                clearDisplay();
+                return;
+            }
+            const matchedItem = items.find(item => item[0].toLowerCase().startsWith(codeInput.toLowerCase()));
+
+            if (matchedItem) {
+                currentIndex = items.indexOf(matchedItem);
+                displayItem(matchedItem);
+                localStorage.setItem('currentIndex', currentIndex); // Salva o índice atual
+            } else {
+                clearDisplay();
+            }
+        });
+
+        function displayItem(item) {
+            const dataDisplay = document.getElementById('dataDisplay');
+            dataDisplay.innerHTML = '';
+
+            if (item && item.length === 4) {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'item';
+                itemDiv.innerHTML = `
+                    <div class="label">Código:</div> <div>${item[0]}</div>
+                    <div class="label">Descrição:</div> <div>${item[1]}</div>
+                    <div class="label">Utilização Livre:</div> <div>${item[2]}</div>
+                    <div class="label">Quantidade Corrigida:</div>
+                    <input type="number" id="correctQuantity" placeholder="Digite a quantidade correta" />
+                `;
+                dataDisplay.appendChild(itemDiv);
+
+                // Mostrar o botão "Ver Itens Errados" se houver erros
+                document.getElementById('viewErrorsButton').style.display = errors.length > 0 ? 'inline-block' : 'none';
+
+                // Exibir os botões de navegação
+                document.getElementById('navigationButtons').style.display = 'block';
+
+                // Adiciona o evento para o botão de marcar erro
+                document.getElementById('markErrorButton').onclick = function() {
+                    const correctQuantity = document.getElementById('correctQuantity').value;
+                    if (correctQuantity) {
+                        errors.push({ 
+                            codigo: item[0], 
+                            descricao: item[1], 
+                            utilizacao: item[2],
+                            quantidade: correctQuantity
+                        });
+                        localStorage.setItem('errors', JSON.stringify(errors)); // Atualiza o localStorage com erros
+                        alert('Item marcado como errado.');
+
+                        // Limpar o campo de input para o próximo código
+                        document.getElementById('codeInput').value = '';
+                        clearDisplay();
+                    } else {
+                        alert('Por favor, insira a quantidade corrigida.');
+                    }
+                };
+            } else {
+                dataDisplay.innerHTML = 'Item não encontrado ou formato inválido.';
+            }
+        }
+
+        function clearDisplay() {
+            const dataDisplay = document.getElementById('dataDisplay');
+            dataDisplay.innerHTML = '';
+            document.getElementById('markErrorButton').style.display = 'none';
+        }
+
+        document.getElementById('prevButton').addEventListener('click', function() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                displayItem(items[currentIndex]);
+                localStorage.setItem('currentIndex', currentIndex); // Salva o índice atual
+                document.getElementById('codeInput').value = items[currentIndex][0]; // Atualiza o campo de código
+            }
+        });
+
+        document.getElementById('nextButton').addEventListener('click', function() {
+            if (currentIndex < items.length - 1) {
+                currentIndex++;
+                displayItem(items[currentIndex]);
+                localStorage.setItem('currentIndex', currentIndex); // Salva o índice atual
+                document.getElementById('codeInput').value = items[currentIndex][0]; // Atualiza o campo de código
+            }
+        });
+
+        document.getElementById('viewErrorsButton').addEventListener('click', function() {
+            localStorage.setItem('currentIndex', currentIndex); // Salva o índice atual antes de ir para a nova tela
+            window.location.href = 'errors.html';
+        });
+
+        // Carregar o item atual ao recarregar a página, se houver
+        window.onload = function() {
+            if (items.length > 0 && currentIndex < items.length) {
+                displayItem(items[currentIndex]);
+                document.getElementById('codeInput').value = items[currentIndex].codigo;
+            }
+        };
+    </script>
+</body>
+</html>
